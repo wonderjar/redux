@@ -26,6 +26,7 @@ function bindActionCreator(actionCreator, dispatch) {
  * function.
  */
 export default function bindActionCreators(actionCreators, dispatch) {
+  //只传了一个creator
   if (typeof actionCreators === 'function') {
     return bindActionCreator(actionCreators, dispatch)
   }

@@ -29,6 +29,8 @@ import isPlainObject from './utils/isPlainObject'
  * and subscribe to changes.
  */
 export default function createStore(reducer, preloadedState, enhancer) {
+  //当只传入了两个参数，且第二参数是function，认为第二个参数是enhancer
+  //我发现之前项目代码碰巧就是只传了两个参数，且第二个参数是applyMiddleware(...)，这里进行了参数调整
   if (typeof preloadedState === 'function' && typeof enhancer === 'undefined') {
     enhancer = preloadedState
     preloadedState = undefined
@@ -38,7 +40,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
     if (typeof enhancer !== 'function') {
       throw new Error('Expected the enhancer to be a function.')
     }
-
+    //enhancer中还是会调用createStore，所以createStore后边的代码还是会跑到
     return enhancer(createStore)(reducer, preloadedState)
   }
 
@@ -54,6 +56,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
 
   function ensureCanMutateNextListeners() {
     if (nextListeners === currentListeners) {
+      //拷贝一个listener新数组
       nextListeners = currentListeners.slice()
     }
   }
@@ -64,6 +67,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
    * @returns {any} The current state tree of your application.
    */
   function getState() {
+    //正在执行reducer时，不能读取state
     if (isDispatching) {
       throw new Error(
         'You may not call store.getState() while the reducer is executing. ' +
@@ -103,6 +107,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
       throw new Error('Expected the listener to be a function.')
     }
 
+    //同样正在执行reducer时，不能做其他事
     if (isDispatching) {
       throw new Error(
         'You may not call store.subscribe() while the reducer is executing. ' +
@@ -113,7 +118,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
     }
 
     let isSubscribed = true
-
+    //确保每次push一个listenner，是会产生一个新数组
     ensureCanMutateNextListeners()
     nextListeners.push(listener)
 
@@ -121,7 +126,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
       if (!isSubscribed) {
         return
       }
-
+      //同样检查是否在dispatch
       if (isDispatching) {
         throw new Error(
           'You may not unsubscribe from a store listener while the reducer is executing. ' +
@@ -130,7 +135,7 @@ export default function createStore(reducer, preloadedState, enhancer) {
       }
 
       isSubscribed = false
-
+      //确保移除一个listener之后，产生一个新数组
       ensureCanMutateNextListeners()
       const index = nextListeners.indexOf(listener)
       nextListeners.splice(index, 1)
@@ -163,31 +168,35 @@ export default function createStore(reducer, preloadedState, enhancer) {
    * return something else (for example, a Promise you can await).
    */
   function dispatch(action) {
+    //让action是plainObject或者说是可序列化的，方便测试，以及可以使用redux-devtools
     if (!isPlainObject(action)) {
       throw new Error(
         'Actions must be plain objects. ' +
           'Use custom middleware for async actions.'
       )
     }
-
+    //检查type必有
     if (typeof action.type === 'undefined') {
       throw new Error(
         'Actions may not have an undefined "type" property. ' +
           'Have you misspelled a constant?'
       )
     }
-
+    //检查是否有其他的dispatch正在执行，很像给函数加了一个不允许并行的锁，一个时间点只允许一个执行
     if (isDispatching) {
       throw new Error('Reducers may not dispatch actions.')
     }
 
     try {
       isDispatching = true
+      //更改state，返回一个新的state
       currentState = currentReducer(currentState, action)
     } finally {
+      //无论如何必须要恢复标志位
       isDispatching = false
     }
 
+    //state更改完之后遍历调用所有listener
     const listeners = (currentListeners = nextListeners)
     for (let i = 0; i < listeners.length; i++) {
       const listener = listeners[i]
@@ -207,12 +216,14 @@ export default function createStore(reducer, preloadedState, enhancer) {
    * @param {Function} nextReducer The reducer for the store to use instead.
    * @returns {void}
    */
+  //运行时可以动态更改reducer
   function replaceReducer(nextReducer) {
     if (typeof nextReducer !== 'function') {
       throw new Error('Expected the nextReducer to be a function.')
     }
 
     currentReducer = nextReducer
+    //???
     dispatch({ type: ActionTypes.REPLACE })
   }
 

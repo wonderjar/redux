@@ -11,6 +11,7 @@
 
 export default function compose(...funcs) {
   if (funcs.length === 0) {
+    //什么都不变
     return arg => arg
   }
 
@@ -18,5 +19,6 @@ export default function compose(...funcs) {
     return funcs[0]
   }
 
+  //形成一个调用chain，最终会让middlewares层层包装dispatch
   return funcs.reduce((a, b) => (...args) => a(b(...args)))
 }

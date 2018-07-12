@@ -18,7 +18,9 @@ import compose from './compose'
  */
 export default function applyMiddleware(...middlewares) {
   return createStore => (...args) => {
+    //createStore(reducer, preloadedState)
     const store = createStore(...args)
+    //先临时定义一个dispatch，来检查构造middleware时调用了dispatch
     let dispatch = () => {
       throw new Error(
         `Dispatching while constructing your middleware is not allowed. ` +
@@ -30,6 +32,7 @@ export default function applyMiddleware(...middlewares) {
       getState: store.getState,
       dispatch: (...args) => dispatch(...args)
     }
+    //每个middleware都可能增强了 store.getState
     const chain = middlewares.map(middleware => middleware(middlewareAPI))
     dispatch = compose(...chain)(store.dispatch)
 

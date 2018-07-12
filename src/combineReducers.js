@@ -65,6 +65,7 @@ function getUnexpectedStateShapeWarningMessage(
 function assertReducerShape(reducers) {
   Object.keys(reducers).forEach(key => {
     const reducer = reducers[key]
+    //调用每个reducer来得到一个初始state，会传入INIT action，所以我们在reducer里总要求switch case最后default要返回state本身
     const initialState = reducer(undefined, { type: ActionTypes.INIT })
 
     if (typeof initialState === 'undefined') {
@@ -78,6 +79,7 @@ function assertReducerShape(reducers) {
     }
 
     if (
+      //多一个检查，万一reducer处理了INIT action，但其实没处理其他未知的action
       typeof reducer(undefined, {
         type: ActionTypes.PROBE_UNKNOWN_ACTION()
       }) === 'undefined'
@@ -115,6 +117,7 @@ function assertReducerShape(reducers) {
 export default function combineReducers(reducers) {
   const reducerKeys = Object.keys(reducers)
   const finalReducers = {}
+  //这个for其实就把reducers复制了一遍到finalReducers，只是做了一轮检查
   for (let i = 0; i < reducerKeys.length; i++) {
     const key = reducerKeys[i]
 
@@ -123,7 +126,7 @@ export default function combineReducers(reducers) {
         warning(`No reducer provided for key "${key}"`)
       }
     }
-
+    //不是function就略过了
     if (typeof reducers[key] === 'function') {
       finalReducers[key] = reducers[key]
     }
@@ -142,6 +145,7 @@ export default function combineReducers(reducers) {
     shapeAssertionError = e
   }
 
+  //糅合了所有reducer，接收state，action，返回新的state
   return function combination(state = {}, action) {
     if (shapeAssertionError) {
       throw shapeAssertionError
@@ -166,6 +170,7 @@ export default function combineReducers(reducers) {
       const reducer = finalReducers[key]
       const previousStateForKey = state[key]
       const nextStateForKey = reducer(previousStateForKey, action)
+      //任何action都不允许返回undefined
       if (typeof nextStateForKey === 'undefined') {
         const errorMessage = getUndefinedStateErrorMessage(key, action)
         throw new Error(errorMessage)
